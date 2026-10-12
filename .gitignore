@@ -1,0 +1,50 @@
+# =========================
+# Unity Client Ignores
+# =========================
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+[Mm]emoryCaptures/
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+sysinfo.txt
+crashinfo.txt
+
+# =========================
+# .NET / ASP.NET Core Backend
+# =========================
+[Bb]in/
+[Oo]bj/
+[Tt]est[Rr]esults/
+*.userprefs
+*.sln.docstates
+.vs/
+.vscode/
+
+# =========================
+# OS & Environment Files
+# =========================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+.env
