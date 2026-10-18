@@ -1,3 +1,4 @@
+```mermaid
 C4Component
     title Component Architecture for Karachi Digital Twin
 
@@ -31,3 +32,5 @@ C4Component
     Rel(terrain, api, "Fetches spatial topology data via", "JSON/HTTPS")
     Rel(shader, api, "Fetches dynamic water flow data via", "JSON/HTTPS")
     Rel(shader, terrain, "Renders water accumulation over", "Engine pipeline")
+
+```
