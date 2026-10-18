@@ -1,3 +1,4 @@
+```mermaid
 C4Container
     title Container Diagram for Karachi Digital Twin
 
@@ -17,3 +18,4 @@ C4Container
     Rel(backend, database, "Queries spatial elevation matrices via", "SQL/TCP")
     Rel(backend, srtm, "Acquires elevation data from", "HTTPS")
     Rel(backend, rainfall, "Acquires weather data from", "HTTPS")
+```
