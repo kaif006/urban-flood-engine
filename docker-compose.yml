@@ -1,18 +1,53 @@
-version: '3.8'
+# docker-compose.yml (repo root)
+name: karachi-flood-twin
 
 services:
   db:
-    image: postgis/postgis:16-3.4
-    container_name: flood_sim_db
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password123 
-      POSTGRES_DB: flood_sim_karachi
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgis_data:/var/lib/postgresql/data
+    build: ./db
+    image: kft-postgis:16-3.4
+    container_name: kft-postgis
     restart: unless-stopped
+    init: true
+    shm_size: 1g
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
+      POSTGRES_DB: ${POSTGRES_DB:?set in .env}
+      TZ: Asia/Karachi
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./db/initdb:/docker-entrypoint-initdb.d:ro   # moved under db/ for the monorepo
+      - ./data:/data:ro
+    command:
+      - postgres
+      - -c
+      - shared_buffers=1GB
+      - -c
+      - effective_cache_size=3GB
+      - -c
+      - work_mem=64MB
+      - -c
+      - maintenance_work_mem=512MB
+      - -c
+      - max_wal_size=4GB
+      - -c
+      - random_page_cost=1.1
+      - -c
+      - postgis.gdal_enabled_drivers=ENABLE_ALL
+      - -c
+      - postgis.enable_outdb_rasters=0
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "5" }
 
 volumes:
-  postgis_data:
+  pgdata:
+    name: kft_pgdata
