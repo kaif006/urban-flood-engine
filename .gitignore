@@ -29,6 +29,7 @@ crashinfo.txt
 # =========================
 # .NET / ASP.NET Core Backend
 # =========================
+!/backend/**/*.csproj
 [Bb]in/
 [Oo]bj/
 [Tt]est[Rr]esults/
