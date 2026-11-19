@@ -9,6 +9,7 @@ if (string.IsNullOrWhiteSpace(connectionString))
 
 builder.Services.AddSingleton(_ => NpgsqlDataSource.Create(connectionString));
 builder.Services.AddSingleton<PostgisDemReader>();
+builder.Services.AddSingleton<PostgisSectorReader>();
 builder.Services.AddProblemDetails();
 
 var app = builder.Build();
