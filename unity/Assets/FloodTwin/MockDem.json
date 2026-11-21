@@ -1,0 +1,12 @@
+{
+  "grid": {
+    "domainId": "gulshan_jauhar",
+    "cols": 3,
+    "rows": 2,
+    "srid": 32642,
+    "originX": 301964.997733,
+    "originY": 2763076.032302,
+    "cellSizeM": 30
+  },
+  "elevationM": [12, 11, null, 10, 9, 8]
+}
