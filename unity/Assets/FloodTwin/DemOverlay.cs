@@ -1,8 +1,7 @@
 using System;
 using System.Collections;
 using System.IO;
-using System.Runtime.Serialization;
-using System.Xml;
+using Newtonsoft.Json;
 using UnityEngine;
 using UnityEngine.Networking;
 
@@ -28,6 +27,13 @@ namespace FloodTwin
         private int selectedSector;
         private int peak;
         private GUIStyle errorStyle;
+
+        internal FlowGrid Flow { get; private set; }
+
+        private static float PanelWidth => Mathf.Max(1f, Mathf.Min(430f, Screen.width - 24f));
+        private static Rect Panel => new(Screen.width - PanelWidth - 12f, 12f, PanelWidth, 158f);
+
+        internal bool CoversPanel(Vector2 point) => terrain != null && Panel.Contains(point);
 
         private void Awake()
         {
@@ -114,14 +120,16 @@ namespace FloodTwin
         private void Apply(byte[] flowJson, byte[] sectorJson)
         {
             Color32[] pixels;
+            FlowGrid flow;
             try
             {
                 using var flowStream = new MemoryStream(flowJson, writable: false);
                 using var sectorStream = new MemoryStream(sectorJson, writable: false);
-                pixels = OverlayGrid.Pack(terrain, DemGrid.ReadJson<FlowGrid>(flowStream),
+                flow = DemGrid.ReadJson<FlowGrid>(flowStream);
+                pixels = OverlayGrid.Pack(terrain, flow,
                     DemGrid.ReadJson<SectorGrid>(sectorStream), out peak);
             }
-            catch (Exception exception) when (exception is InvalidDataException or SerializationException or XmlException)
+            catch (Exception exception) when (exception is InvalidDataException or JsonException)
             {
                 Fail($"Could not apply the overlays. {exception.Message}");
                 return;
@@ -147,6 +155,7 @@ namespace FloodTwin
             overlayMaterial.SetTexture(OverlayId, texture);
             overlayMaterial.SetVector(GridSizeId,
                 new Vector4(grid.Cols * grid.CellSizeM, grid.Rows * grid.CellSizeM, 0f, 0f));
+            Flow = flow;
             ApplySelection();
         }
 
@@ -169,8 +178,7 @@ namespace FloodTwin
             if (terrain == null)
                 return;
 
-            float width = Mathf.Max(1f, Mathf.Min(430f, Screen.width - 24f));
-            GUILayout.BeginArea(new Rect(Screen.width - width - 12f, 12f, width, 158f), GUI.skin.box);
+            GUILayout.BeginArea(Panel, GUI.skin.box);
             if (loading || error != null)
             {
                 errorStyle ??= new GUIStyle(GUI.skin.label) { wordWrap = true };
@@ -182,7 +190,7 @@ namespace FloodTwin
             {
                 GUILayout.Label("Flow accumulation (contributing cells)");
                 bool visible = GUILayout.Toggle(showFlow, "Show overlay");
-                int sector = GUILayout.SelectionGrid(selectedSector, SectorLabels, width < 335f ? 1 : 3);
+                int sector = GUILayout.SelectionGrid(selectedSector, SectorLabels, PanelWidth < 335f ? 1 : 3);
                 if (visible != showFlow || sector != selectedSector)
                 {
                     showFlow = visible;
@@ -211,6 +219,7 @@ namespace FloodTwin
             loading = false;
             error = null;
             terrain = null;
+            Flow = null;
             if (overlayMaterial != null)
             {
                 terrainRenderer.sharedMaterial = terrainMaterial;

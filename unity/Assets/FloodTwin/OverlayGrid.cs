@@ -1,31 +1,28 @@
 using System;
 using System.IO;
-using System.Runtime.Serialization;
+using Newtonsoft.Json;
 using UnityEngine;
 
 namespace FloodTwin
 {
-    [DataContract]
     internal sealed class FlowGrid
     {
-        [DataMember(Name = "grid", IsRequired = true)] public GridMetadata Grid { get; private set; }
-        [DataMember(Name = "direction", IsRequired = true)] public string[] Direction { get; private set; }
-        [DataMember(Name = "contributingCellCount", IsRequired = true)] public int?[] Counts { get; private set; }
+        [JsonProperty("grid", Required = Required.Always)] public GridMetadata Grid { get; private set; }
+        [JsonProperty("direction", Required = Required.Always)] public string[] Direction { get; private set; }
+        [JsonProperty("contributingCellCount", Required = Required.Always)] public int?[] Counts { get; private set; }
     }
 
-    [DataContract]
     internal sealed class SectorGrid
     {
-        [DataMember(Name = "grid", IsRequired = true)] public GridMetadata Grid { get; private set; }
-        [DataMember(Name = "sectors", IsRequired = true)] public SectorSelection[] Sectors { get; private set; }
+        [JsonProperty("grid", Required = Required.Always)] public GridMetadata Grid { get; private set; }
+        [JsonProperty("sectors", Required = Required.Always)] public SectorSelection[] Sectors { get; private set; }
     }
 
-    [DataContract]
     internal sealed class SectorSelection
     {
-        [DataMember(Name = "sectorId", IsRequired = true)] public string Id { get; private set; }
-        [DataMember(Name = "cellIndices", IsRequired = true)] public int[] Indices { get; private set; }
-        [DataMember(Name = "contributingCellCount", IsRequired = true)] public int[] Counts { get; private set; }
+        [JsonProperty("sectorId", Required = Required.Always)] public string Id { get; private set; }
+        [JsonProperty("cellIndices", Required = Required.Always)] public int[] Indices { get; private set; }
+        [JsonProperty("contributingCellCount", Required = Required.Always)] public int[] Counts { get; private set; }
     }
 
     internal static class OverlayGrid
