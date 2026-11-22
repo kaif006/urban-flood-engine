@@ -1,0 +1,17 @@
+{
+  "grid": {
+    "domainId": "gulshan_jauhar",
+    "cols": 3,
+    "rows": 2,
+    "srid": 32642,
+    "originX": 301964.997733,
+    "originY": 2763076.032302,
+    "cellSizeM": 30
+  },
+  "direction": ["SE", "SE", null, "E", "E", "NONE"],
+  "contributingCellCount": [1, 1, null, 1, 3, 5],
+  "sectors": [
+    {"sectorId": "gulshan_e_iqbal", "cellIndices": [0, 3, 4], "contributingCellCount": [1, 1, 3]},
+    {"sectorId": "gulistan_e_jauhar", "cellIndices": [1, 5], "contributingCellCount": [1, 5]}
+  ]
+}
