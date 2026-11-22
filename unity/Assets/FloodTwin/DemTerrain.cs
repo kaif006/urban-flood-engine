@@ -11,13 +11,14 @@ namespace FloodTwin
     [RequireComponent(typeof(MeshFilter), typeof(MeshRenderer))]
     public sealed class DemTerrain : MonoBehaviour
     {
-        private const string TerrainPath = "/api/v1/domains/gulshan_jauhar/terrain";
+        private const string DomainPath = "/api/v1/domains/gulshan_jauhar";
 
         [SerializeField] private bool useMockFixture;
         [SerializeField] private TextAsset fixture;
         [SerializeField] private string apiBaseUrl = "http://127.0.0.1:5080";
 
         private Mesh mesh;
+        private DemOverlay overlay;
         private UnityWebRequest request;
         private bool loading;
         private string error;
@@ -49,12 +50,12 @@ namespace FloodTwin
             }
 
             loading = true;
-            StartCoroutine(LoadLive(baseUri.AbsoluteUri.TrimEnd('/') + TerrainPath));
+            StartCoroutine(LoadLive(baseUri.AbsoluteUri.TrimEnd('/') + DomainPath));
         }
 
-        private IEnumerator LoadLive(string url)
+        private IEnumerator LoadLive(string domainUrl)
         {
-            request = UnityWebRequest.Get(url);
+            request = UnityWebRequest.Get(domainUrl + "/terrain");
             request.timeout = 15;
             UnityWebRequestAsyncOperation operation;
             try
@@ -75,7 +76,7 @@ namespace FloodTwin
             {
                 var json = request.downloadHandler.data;
                 ReleaseRequest();
-                Render(json);
+                Render(json, domainUrl);
             }
             else
             {
@@ -85,7 +86,7 @@ namespace FloodTwin
             }
         }
 
-        private void Render(byte[] json)
+        private void Render(byte[] json, string domainUrl = null)
         {
             DemGrid dem;
             Mesh nextMesh;
@@ -123,6 +124,10 @@ namespace FloodTwin
                 camera.farClipPlane = Mathf.Max(camera.farClipPlane, height + bounds.size.y + 1f);
             }
 
+            if (overlay == null)
+                overlay = gameObject.AddComponent<DemOverlay>();
+            overlay.Show(dem, domainUrl);
+
             Debug.Log($"Loaded {(useMockFixture ? "mock" : "live")} DEM {Grid.DomainId}: " +
                 $"{Grid.Cols} × {Grid.Rows}, {Grid.CellSizeM:g} m cells, EPSG:{Grid.Srid}, " +
                 $"{dem.ElevationM.Length - mesh.vertexCount:N0} NoData cells.", this);
@@ -156,6 +161,7 @@ namespace FloodTwin
 
         private void OnDisable()
         {
+            overlay?.Clear();
             StopAllCoroutines();
             request?.Abort();
             ReleaseRequest();
