@@ -1,16 +1,14 @@
 using System.IO;
-using System.Runtime.Serialization;
-using System.Runtime.Serialization.Json;
+using Newtonsoft.Json;
 
 namespace FloodTwin
 {
-    [DataContract]
     internal sealed class DemGrid
     {
-        [DataMember(Name = "grid", IsRequired = true)]
+        [JsonProperty("grid", Required = Required.Always)]
         public GridMetadata Grid { get; private set; }
 
-        [DataMember(Name = "elevationM", IsRequired = true)]
+        [JsonProperty("elevationM", Required = Required.Always)]
         public float?[] ElevationM { get; private set; }
 
         public static DemGrid Read(Stream json)
@@ -26,13 +24,14 @@ namespace FloodTwin
 
         internal static T ReadJson<T>(Stream json) where T : class
         {
-            var serializer = new DataContractJsonSerializer(typeof(T));
-            return serializer.ReadObject(json) as T
+            using var reader = new StreamReader(json);
+            using var tokens = new JsonTextReader(reader);
+            var serializer = JsonSerializer.CreateDefault();
+            return serializer.Deserialize<T>(tokens)
                 ?? throw new InvalidDataException("Expected a JSON object.");
         }
     }
 
-    [DataContract]
     internal sealed class GridMetadata
     {
         public bool Matches(GridMetadata other) =>
@@ -40,12 +39,12 @@ namespace FloodTwin
             Srid == other.Srid && OriginX == other.OriginX && OriginY == other.OriginY &&
             CellSizeM == other.CellSizeM;
 
-        [DataMember(Name = "domainId", IsRequired = true)] public string DomainId { get; private set; }
-        [DataMember(Name = "rows", IsRequired = true)] public int Rows { get; private set; }
-        [DataMember(Name = "cols", IsRequired = true)] public int Cols { get; private set; }
-        [DataMember(Name = "srid", IsRequired = true)] public int Srid { get; private set; }
-        [DataMember(Name = "originX", IsRequired = true)] public double OriginX { get; private set; }
-        [DataMember(Name = "originY", IsRequired = true)] public double OriginY { get; private set; }
-        [DataMember(Name = "cellSizeM", IsRequired = true)] public float CellSizeM { get; private set; }
+        [JsonProperty("domainId", Required = Required.Always)] public string DomainId { get; private set; }
+        [JsonProperty("rows", Required = Required.Always)] public int Rows { get; private set; }
+        [JsonProperty("cols", Required = Required.Always)] public int Cols { get; private set; }
+        [JsonProperty("srid", Required = Required.Always)] public int Srid { get; private set; }
+        [JsonProperty("originX", Required = Required.Always)] public double OriginX { get; private set; }
+        [JsonProperty("originY", Required = Required.Always)] public double OriginY { get; private set; }
+        [JsonProperty("cellSizeM", Required = Required.Always)] public float CellSizeM { get; private set; }
     }
 }

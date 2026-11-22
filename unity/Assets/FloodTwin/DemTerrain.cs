@@ -1,8 +1,7 @@
 using System;
 using System.Collections;
 using System.IO;
-using System.Runtime.Serialization;
-using System.Xml;
+using Newtonsoft.Json;
 using UnityEngine;
 using UnityEngine.Networking;
 
@@ -19,12 +18,31 @@ namespace FloodTwin
 
         private Mesh mesh;
         private DemOverlay overlay;
+        private CityPilot pilot;
+        private DemoNavigation navigation;
         private UnityWebRequest request;
         private bool loading;
         private string error;
         private GUIStyle statusStyle;
 
         internal GridMetadata Grid { get; private set; }
+
+        private void Awake()
+        {
+            if (Application.isEditor)
+                return;
+
+            // Let desktop loading continue if the window loses focus during startup.
+            Application.runInBackground = true;
+            var args = Environment.GetCommandLineArgs();
+            for (int i = 1; i < args.Length; i++)
+            {
+                if (args[i] == "--mock")
+                    useMockFixture = true;
+                else if (args[i] == "--api-url" && i + 1 < args.Length)
+                    apiBaseUrl = args[++i];
+            }
+        }
 
         private void OnEnable() => Load();
 
@@ -96,7 +114,7 @@ namespace FloodTwin
                 dem = DemGrid.Read(stream);
                 nextMesh = DemMeshBuilder.Build(dem);
             }
-            catch (Exception exception) when (exception is InvalidDataException or SerializationException or XmlException)
+            catch (Exception exception) when (exception is InvalidDataException or JsonException)
             {
                 Fail($"Could not read the terrain data. {exception.Message}");
                 return;
@@ -108,6 +126,7 @@ namespace FloodTwin
             mesh = nextMesh;
             Grid = dem.Grid;
 
+            pilot?.Clear();
             var camera = Camera.main;
             if (camera != null)
             {
@@ -124,9 +143,19 @@ namespace FloodTwin
                 camera.farClipPlane = Mathf.Max(camera.farClipPlane, height + bounds.size.y + 1f);
             }
 
+            if (domainUrl != null)
+            {
+                if (pilot == null)
+                    pilot = gameObject.AddComponent<CityPilot>();
+                pilot.Show(dem);
+            }
+
             if (overlay == null)
                 overlay = gameObject.AddComponent<DemOverlay>();
             overlay.Show(dem, domainUrl);
+            if (navigation == null)
+                navigation = gameObject.AddComponent<DemoNavigation>();
+            navigation.Show(dem, mesh, overlay, pilot);
 
             Debug.Log($"Loaded {(useMockFixture ? "mock" : "live")} DEM {Grid.DomainId}: " +
                 $"{Grid.Cols} × {Grid.Rows}, {Grid.CellSizeM:g} m cells, EPSG:{Grid.Srid}, " +
@@ -161,6 +190,8 @@ namespace FloodTwin
 
         private void OnDisable()
         {
+            navigation?.Clear();
+            pilot?.Clear();
             overlay?.Clear();
             StopAllCoroutines();
             request?.Abort();
