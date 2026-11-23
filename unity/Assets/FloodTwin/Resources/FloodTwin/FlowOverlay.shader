@@ -5,6 +5,7 @@ Shader "FloodTwin/FlowOverlay"
         _Overlay ("Flow and sector data", 2D) = "black" {}
         _GridSize ("Grid width and depth in metres", Vector) = (1, 1, 0, 0)
         _Sector ("Selected sector", Float) = 0
+        _Hotspots ("Hotspot filter enabled", Float) = 0
     }
 
     SubShader
@@ -24,6 +25,7 @@ Shader "FloodTwin/FlowOverlay"
             CBUFFER_START(UnityPerMaterial)
                 float4 _GridSize;
                 float _Sector;
+                float _Hotspots;
             CBUFFER_END
 
             struct Attributes
@@ -48,7 +50,7 @@ Shader "FloodTwin/FlowOverlay"
             half4 Frag(Varyings input) : SV_Target
             {
                 half4 data = SAMPLE_TEXTURE2D(_Overlay, sampler_Overlay, input.gridUV);
-                clip(data.a - 0.5);
+                clip(data.a - 0.25);
 
                 half3 low = half3(0.06, 0.18, 0.38);
                 half3 mid = half3(0.02, 0.62, 0.69);
@@ -57,6 +59,8 @@ Shader "FloodTwin/FlowOverlay"
                 color = lerp(color, high, saturate(data.r * 2.0 - 1.0));
 
                 half selected = _Sector < 0.5 ? 1.0 : (_Sector < 1.5 ? data.g : data.b);
+                if (_Hotspots > 0.5)
+                    selected *= step(0.75, data.a);
                 return half4(lerp(half3(0.10, 0.12, 0.14), color, selected), 1.0);
             }
             ENDHLSL

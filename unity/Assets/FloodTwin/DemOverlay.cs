@@ -10,6 +10,10 @@ namespace FloodTwin
     internal sealed class DemOverlay : MonoBehaviour
     {
         private static readonly string[] SectorLabels = { "Shared domain", "Gulshan-e-Iqbal", "Gulistan-e-Jauhar" };
+        private const int HotspotsPerPage = 5;
+        private static readonly string[] HotspotLabels = { "Off", "Top 1%", "Top 5%", "Top 10%" };
+        private static readonly int[] HotspotPercents = { 0, 1, 5, 10 };
+        private static readonly int HotspotsId = Shader.PropertyToID("_Hotspots");
         private static readonly int OverlayId = Shader.PropertyToID("_Overlay");
         private static readonly int GridSizeId = Shader.PropertyToID("_GridSize");
         private static readonly int SectorId = Shader.PropertyToID("_Sector");
@@ -26,14 +30,15 @@ namespace FloodTwin
         private bool showFlow = true;
         private int selectedSector;
         private int peak;
-        private GUIStyle errorStyle;
+        private Texture2D legendRamp;
+        private Color32[] overlayPixels;
+        private FlowHotspots hotspots;
+        private int hotspotFilter;
+        private int hotspotPage;
+        private int appliedHotspotFilter;
+        private int appliedHotspotSector;
 
         internal FlowGrid Flow { get; private set; }
-
-        private static float PanelWidth => Mathf.Max(1f, Mathf.Min(430f, Screen.width - 24f));
-        private static Rect Panel => new(Screen.width - PanelWidth - 12f, 12f, PanelWidth, 158f);
-
-        internal bool CoversPanel(Vector2 point) => terrain != null && Panel.Contains(point);
 
         private void Awake()
         {
@@ -149,6 +154,7 @@ namespace FloodTwin
                 filterMode = FilterMode.Point,
                 wrapMode = TextureWrapMode.Clamp
             };
+            overlayPixels = pixels;
             texture.SetPixels32(pixels);
             texture.Apply(updateMipmaps: false);
             overlayMaterial = new Material(shader) { name = "Flow overlay" };
@@ -172,25 +178,24 @@ namespace FloodTwin
             Debug.LogWarning(message, this);
         }
 
-        // Keep the overlay controls alongside the existing terrain integration feedback.
-        private void OnGUI()
+        internal void DrawControls()
         {
             if (terrain == null)
                 return;
 
-            GUILayout.BeginArea(Panel, GUI.skin.box);
+            DemoHud.Section("Flow accumulation");
             if (loading || error != null)
             {
-                errorStyle ??= new GUIStyle(GUI.skin.label) { wordWrap = true };
-                GUILayout.Label(loading ? "Loading flow and sectors…" : error, errorStyle);
-                if (!loading && GUILayout.Button("Retry overlays"))
+                GUILayout.Label(loading ? "Loading flow and sectors…" : error, DemoHud.Body);
+                if (!loading && GUILayout.Button("Retry overlays", DemoHud.Button))
                     Load();
             }
             else if (overlayMaterial != null)
             {
-                GUILayout.Label("Flow accumulation (contributing cells)");
-                bool visible = GUILayout.Toggle(showFlow, "Show overlay");
-                int sector = GUILayout.SelectionGrid(selectedSector, SectorLabels, PanelWidth < 335f ? 1 : 3);
+                GUILayout.Label(domainUrl == null ? "Contributing cells · Mock data" : "Contributing cells",
+                    DemoHud.Caption);
+                int sector = GUILayout.SelectionGrid(selectedSector, SectorLabels, 1, DemoHud.Tab);
+                bool visible = GUILayout.Toggle(showFlow, showFlow ? "Overlay on" : "Overlay off", DemoHud.Button);
                 if (visible != showFlow || sector != selectedSector)
                 {
                     showFlow = visible;
@@ -198,11 +203,110 @@ namespace FloodTwin
                     ApplySelection();
                 }
 
-                GUILayout.Label($"Blue: 1    Yellow: {peak:N0}    Log scale");
-                if (domainUrl == null)
-                    GUILayout.Label("Mock data and sector masks");
+                if (legendRamp == null)
+                    legendRamp = CreateLegendRamp();
+
+                GUILayout.Space(6);
+                DemoHud.FlowRamp(peak, legendRamp);
             }
-            GUILayout.EndArea();
+        }
+
+        internal FlowHotspot? DrawHotspots()
+        {
+            if (overlayMaterial == null)
+                return null;
+
+            if (Event.current.type == EventType.Layout &&
+                (appliedHotspotFilter != hotspotFilter || appliedHotspotSector != selectedSector))
+            {
+                appliedHotspotFilter = hotspotFilter;
+                appliedHotspotSector = selectedSector;
+                hotspotPage = 0;
+                hotspots = null;
+                if (hotspotFilter != 0)
+                {
+                    hotspots = FlowHotspots.Apply(Flow.Counts, overlayPixels, terrain.Grid.Cols,
+                        selectedSector, HotspotPercents[hotspotFilter]);
+                    texture.SetPixels32(overlayPixels);
+                    texture.Apply(updateMipmaps: false);
+                }
+                overlayMaterial.SetFloat(HotspotsId, hotspotFilter == 0 ? 0f : 1f);
+            }
+
+            DemoHud.Section("Flow hotspots");
+            int filter = GUILayout.SelectionGrid(hotspotFilter, HotspotLabels, 4, DemoHud.Tab);
+            if (filter != hotspotFilter)
+            {
+                hotspotFilter = filter;
+                if (filter != 0 && !showFlow)
+                {
+                    showFlow = true;
+                    ApplySelection();
+                }
+            }
+
+            if (hotspots == null)
+                return null;
+            if (hotspots.Groups.Count == 0)
+            {
+                GUILayout.Label("No valid cells in this selection.", DemoHud.Caption);
+                return null;
+            }
+
+            GUILayout.Label($"{hotspots.CellCount:N0} cells at or above {hotspots.Cutoff:N0} contributing cells",
+                DemoHud.Caption);
+            GUILayout.Label($"{hotspots.Groups.Count:N0} hotspots · Ties included", DemoHud.Caption);
+
+            int first = hotspotPage * HotspotsPerPage;
+            int end = Math.Min(first + HotspotsPerPage, hotspots.Groups.Count);
+            FlowHotspot? selected = null;
+            for (int i = first; i < end; i++)
+            {
+                var group = hotspots.Groups[i];
+                if (GUILayout.Button($"#{i + 1:N0}  ·  Peak {group.PeakCount:N0}  ·  {group.CellCount:N0} cells",
+                    DemoHud.Button))
+                    selected = group;
+            }
+
+            int pages = (hotspots.Groups.Count + HotspotsPerPage - 1) / HotspotsPerPage;
+            if (pages > 1)
+            {
+                using (new GUILayout.HorizontalScope())
+                {
+                    int nextPage = hotspotPage;
+                    bool enabled = GUI.enabled;
+                    GUI.enabled = enabled && hotspotPage > 0;
+                    if (GUILayout.Button("Previous", DemoHud.Tab))
+                        nextPage--;
+                    GUI.enabled = enabled;
+                    GUILayout.Label($"{hotspotPage + 1:N0} / {pages:N0}", DemoHud.Caption);
+                    GUI.enabled = enabled && hotspotPage + 1 < pages;
+                    if (GUILayout.Button("Next", DemoHud.Tab))
+                        nextPage++;
+                    GUI.enabled = enabled;
+                    hotspotPage = nextPage;
+                }
+            }
+            return selected;
+        }
+
+        private static Texture2D CreateLegendRamp()
+        {
+            // Match the linear RGB stops and interpolation in FlowOverlay.shader.
+            Color low = new(0.06f, 0.18f, 0.38f);
+            Color mid = new(0.02f, 0.62f, 0.69f);
+            Color high = new(1f, 0.76f, 0.14f);
+            var ramp = new Texture2D(129, 1, TextureFormat.RGBA32, false, true)
+            {
+                wrapMode = TextureWrapMode.Clamp
+            };
+            for (int x = 0; x < ramp.width; x++)
+            {
+                float t = x / 64f;
+                ramp.SetPixel(x, 0, t <= 1f ? Color.Lerp(low, mid, t) : Color.Lerp(mid, high, t - 1f));
+            }
+            ramp.Apply(false, true);
+            return ramp;
         }
 
         private void ReleaseRequest()
@@ -220,6 +324,12 @@ namespace FloodTwin
             error = null;
             terrain = null;
             Flow = null;
+            overlayPixels = null;
+            hotspots = null;
+            hotspotFilter = 0;
+            appliedHotspotFilter = 0;
+            appliedHotspotSector = selectedSector;
+            hotspotPage = 0;
             if (overlayMaterial != null)
             {
                 terrainRenderer.sharedMaterial = terrainMaterial;
@@ -234,5 +344,11 @@ namespace FloodTwin
         }
 
         private void OnDisable() => Clear();
+
+        private void OnDestroy()
+        {
+            if (legendRamp != null)
+                Destroy(legendRamp);
+        }
     }
 }

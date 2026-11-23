@@ -23,7 +23,6 @@ namespace FloodTwin
         private UnityWebRequest request;
         private bool loading;
         private string error;
-        private GUIStyle statusStyle;
 
         internal GridMetadata Grid { get; private set; }
 
@@ -138,8 +137,6 @@ namespace FloodTwin
                     new Vector3(target.x, top.y + height, target.z),
                     Quaternion.Euler(90f, 0f, 0f));
                 camera.orthographic = true;
-                camera.orthographicSize = Mathf.Max(1f, 1.12f * Mathf.Max(bounds.extents.z,
-                    bounds.extents.x / Mathf.Max(0.1f, camera.aspect)));
                 camera.farClipPlane = Mathf.Max(camera.farClipPlane, height + bounds.size.y + 1f);
             }
 
@@ -168,16 +165,15 @@ namespace FloodTwin
             Debug.LogWarning(message, this);
         }
 
-        // Debug feedback for loading and retrying the terrain during integration.
         private void OnGUI()
         {
             if (!loading && error == null)
                 return;
 
-            statusStyle ??= new GUIStyle(GUI.skin.label) { wordWrap = true };
-            GUILayout.BeginArea(new Rect(12, 12, Mathf.Max(1, Mathf.Min(480, Screen.width - 24)), 136), GUI.skin.box);
-            GUILayout.Label(loading ? "Loading live terrain…" : error, statusStyle);
-            if (!loading && GUILayout.Button("Retry"))
+            DemoHud.BeginDock();
+            GUILayout.Label("Karachi Flood Twin", DemoHud.Title);
+            GUILayout.Label(loading ? "Loading live terrain…" : error, DemoHud.Body);
+            if (!loading && GUILayout.Button("Retry", DemoHud.Button))
                 Load();
             GUILayout.EndArea();
         }

@@ -177,22 +177,16 @@ namespace FloodTwin
             focusedCamera = null;
         }
 
-        private static Rect Panel => new(12f, Mathf.Max(12f, Screen.height - 157f),
-            Mathf.Max(1f, Mathf.Min(276f, Screen.width - 24f)), 145f);
-
-        internal bool CoversPanel(Vector2 point) => roadLayer != null && Panel.Contains(point);
-
-        // Pilot controls share the integration scene's existing debug UI.
-        private void OnGUI()
+        internal void DrawControls()
         {
             if (roadLayer == null || buildingLayer == null)
                 return;
 
-            GUILayout.BeginArea(Panel, GUI.skin.box);
-            GUILayout.Label("Mapped roads and buildings");
+            DemoHud.Section("City layers");
             if (loading)
-                GUILayout.Label("Loading city geometry…");
-            if (GUILayout.Button(focusedCamera == null ? "Focus Gulshan Chowrangi" : "Return to shared view"))
+                GUILayout.Label("Loading city geometry…", DemoHud.Caption);
+            if (GUILayout.Button(focusedCamera == null ? "Focus Gulshan Chowrangi" : "Return to shared view",
+                DemoHud.Button))
             {
                 if (focusedCamera == null)
                     Focus();
@@ -201,8 +195,8 @@ namespace FloodTwin
             }
 
             GUILayout.BeginHorizontal();
-            bool roadsVisible = GUILayout.Toggle(showRoads, "Roads");
-            bool buildingsVisible = GUILayout.Toggle(showBuildings, "Buildings");
+            bool roadsVisible = GUILayout.Toggle(showRoads, "Roads", DemoHud.Button);
+            bool buildingsVisible = GUILayout.Toggle(showBuildings, "Buildings", DemoHud.Button);
             GUILayout.EndHorizontal();
             if (roadsVisible != showRoads || buildingsVisible != showBuildings)
             {
@@ -212,9 +206,8 @@ namespace FloodTwin
                 buildingLayer.SetActive(showBuildings);
             }
 
-            if (GUILayout.Button("© OpenStreetMap contributors · ODbL"))
+            if (GUILayout.Button("© OpenStreetMap contributors · ODbL", DemoHud.Tab))
                 Application.OpenURL("https://www.openstreetmap.org/copyright");
-            GUILayout.EndArea();
         }
 
         internal void Clear()
